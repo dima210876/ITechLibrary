@@ -7,6 +7,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -138,18 +139,17 @@ public class BookAuthorDao implements RelativeDao
     }
 
     @Override
-    public Optional<RelationRecord> create(RelationRecord relationRecord)
+    public Optional<RelationRecord> create(Connection conn, RelationRecord relationRecord)
     {
         PreparedStatement statement = null;
-        Connection conn = null;
         try
         {
-            conn = POOL.retrieveConnection();
-            statement = conn.prepareStatement(CREATE_RECORD_SQL);
+            statement = conn.prepareStatement(CREATE_RECORD_SQL, Statement.RETURN_GENERATED_KEYS);
             statement.setLong(1, relationRecord.getFirstId());
             statement.setLong(2, relationRecord.getSecondId());
             statement.execute();
-            long newId = statement.getGeneratedKeys().getLong("id");
+            ResultSet resultSet = statement.getGeneratedKeys();
+            long newId = resultSet.next() ? resultSet.getLong(1) : 0L;
             return findById(newId);
         }
         catch (SQLException e)
@@ -160,7 +160,6 @@ public class BookAuthorDao implements RelativeDao
         finally
         {
             closeStatement(statement);
-            POOL.returnConnection(conn);
         }
         return Optional.empty();
     }
@@ -191,13 +190,11 @@ public class BookAuthorDao implements RelativeDao
         return false;
     }
 
-    public boolean deleteByBookId(long bookId)
+    public boolean deleteByBookId(Connection conn, long bookId)
     {
         PreparedStatement statement = null;
-        Connection conn = null;
         try
         {
-            conn = POOL.retrieveConnection();
             statement = conn.prepareStatement(DELETE_RECORD_BY_BOOK_ID_SQL);
             statement.setLong(1, bookId);
             statement.executeUpdate();
@@ -211,8 +208,23 @@ public class BookAuthorDao implements RelativeDao
         finally
         {
             closeStatement(statement);
-            POOL.returnConnection(conn);
         }
         return false;
+    }
+
+    private Optional<List<RelationRecord>> retrieveRelationRecordsFromResultSet(ResultSet resultSet) throws SQLException
+    {
+        List<RelationRecord> relationRecords = new ArrayList<>();
+        while (resultSet.next()) { relationRecords.add(retrieveRelationRecordFromResultSet(resultSet)); }
+        return Optional.of(relationRecords);
+    }
+
+    private RelationRecord retrieveRelationRecordFromResultSet(ResultSet resultSet) throws SQLException
+    {
+        return RelationRecord.builder()
+                .id(resultSet.getLong("id"))
+                .firstId(resultSet.getLong("book_id"))
+                .secondId(resultSet.getLong("author_id"))
+                .build();
     }
 }

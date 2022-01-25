@@ -1,0 +1,23 @@
+.img-book {
+    height: 400px;
+    max-width: 1000px;
+}
+
+.logo {
+    width: 140px;
+}
+
+.removeButton {
+    text-decoration: none;
+    color: black;
+}
+
+.error {
+    color: #a3132b;
+}
+
+
+
+
+
+

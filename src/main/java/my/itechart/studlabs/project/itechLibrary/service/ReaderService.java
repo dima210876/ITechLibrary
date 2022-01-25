@@ -9,4 +9,6 @@ public interface ReaderService extends DefaultService<ReaderDto>
     ReaderDto findReaderByEmail(String email);
 
     List<ReaderDto> findBySortingAndPage(String sortingColumn, int page);
+
+    List<ReaderDto> findByReversedSortingAndPage(String sortingColumn, int page);
 }

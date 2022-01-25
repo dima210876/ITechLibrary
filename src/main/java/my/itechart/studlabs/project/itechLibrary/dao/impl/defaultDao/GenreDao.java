@@ -116,10 +116,11 @@ public class GenreDao implements DefaultDao<Genre>
         try
         {
             conn = POOL.retrieveConnection();
-            statement = conn.prepareStatement(CREATE_GENRE_SQL);
+            statement = conn.prepareStatement(CREATE_GENRE_SQL, Statement.RETURN_GENERATED_KEYS);
             statement.setString(1, genre.getGenreName());
             statement.execute();
-            long newId = statement.getGeneratedKeys().getLong("id");
+            ResultSet resultSet = statement.getGeneratedKeys();
+            long newId = resultSet.next() ? resultSet.getLong(1) : 0L;
             return findById(newId);
         }
         catch (SQLException e)
@@ -146,7 +147,7 @@ public class GenreDao implements DefaultDao<Genre>
             statement.setString(1, genre.getGenreName());
             statement.setLong(2, genre.getId());
             statement.executeUpdate();
-            return Optional.of(genre);
+            return findById(genre.getId());
         }
         catch (SQLException e)
         {

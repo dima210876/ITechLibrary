@@ -116,10 +116,11 @@ public class AuthorDao implements DefaultDao<Author>
         try
         {
             conn = POOL.retrieveConnection();
-            statement = conn.prepareStatement(CREATE_AUTHOR_SQL);
+            statement = conn.prepareStatement(CREATE_AUTHOR_SQL, Statement.RETURN_GENERATED_KEYS);
             fillPreparedStatement(author, statement);
             statement.execute();
-            long newId = statement.getGeneratedKeys().getLong("id");
+            ResultSet resultSet = statement.getGeneratedKeys();
+            long newId = resultSet.next() ? resultSet.getLong(1) : 0L;
             return findById(newId);
         }
         catch (SQLException e)
@@ -146,7 +147,7 @@ public class AuthorDao implements DefaultDao<Author>
             fillPreparedStatement(author, statement);
             statement.setLong(4, author.getId());
             statement.executeUpdate();
-            return Optional.of(author);
+            return findById(author.getId());
         }
         catch (SQLException e)
         {

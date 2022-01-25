@@ -1,8 +1,6 @@
 package my.itechart.studlabs.project.itechLibrary.service;
 
 import my.itechart.studlabs.project.itechLibrary.model.dto.BorrowDto;
-import my.itechart.studlabs.project.itechLibrary.model.entity.Borrow;
-
 import java.util.List;
 
 public interface BorrowService extends DefaultService<BorrowDto>

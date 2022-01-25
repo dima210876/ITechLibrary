@@ -1,8 +1,14 @@
 package my.itechart.studlabs.project.itechLibrary.service.impl;
 
+import my.itechart.studlabs.project.itechLibrary.dao.factory.complexDaoFactory.BookCopyDaoFactory;
+import my.itechart.studlabs.project.itechLibrary.dao.factory.complexDaoFactory.BookCoverPhotoDaoFactory;
+import my.itechart.studlabs.project.itechLibrary.dao.factory.complexDaoFactory.BookDaoFactory;
 import my.itechart.studlabs.project.itechLibrary.dao.factory.defaultDaoFactory.*;
 import my.itechart.studlabs.project.itechLibrary.dao.factory.relativeDaoFactory.BookAuthorDaoFactory;
 import my.itechart.studlabs.project.itechLibrary.dao.factory.relativeDaoFactory.BookGenreDaoFactory;
+import my.itechart.studlabs.project.itechLibrary.dao.impl.complexDao.BookCopyDao;
+import my.itechart.studlabs.project.itechLibrary.dao.impl.complexDao.BookCoverPhotoDao;
+import my.itechart.studlabs.project.itechLibrary.dao.impl.complexDao.BookDao;
 import my.itechart.studlabs.project.itechLibrary.dao.impl.defaultDao.*;
 import my.itechart.studlabs.project.itechLibrary.dao.impl.relativeDao.BookAuthorDao;
 import my.itechart.studlabs.project.itechLibrary.dao.impl.relativeDao.BookGenreDao;
@@ -22,9 +28,7 @@ import org.apache.logging.log4j.Logger;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Savepoint;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -33,6 +37,7 @@ public class BookServiceImpl implements BookService
     private static final BookServiceImpl INSTANCE = new BookServiceImpl();
     private static final ConnectionPool POOL = ConnectionPool.getInstance();
     private static final Logger LOGGER = LogManager.getLogger(BookServiceImpl.class);
+    private static final long PAGE_SIZE = 20;
     private final BookDao bookDao;
     private final AuthorDao authorDao;
     private final BookAuthorDao bookAuthorDao;
@@ -75,6 +80,16 @@ public class BookServiceImpl implements BookService
     }
 
     @Override
+    public List<BookDto> findByReversedSortingAndPage(String sortingColumn, int page)
+    {
+        return checkOptionalList(
+                bookDao.findByReversedSortingAndPageNumber(sortingColumn, page)
+                        .map(books -> books.stream()
+                                .map(this::convertToDto)
+                                .collect(Collectors.toList())));
+    }
+
+    @Override
     public List<BookDto> findByDefaultSortingAndPage(int page)
     {
         return checkOptionalList(
@@ -95,7 +110,22 @@ public class BookServiceImpl implements BookService
                                             }
                                         }
                                         )
+                                .skip(PAGE_SIZE * (page - 1))
+                                .limit(PAGE_SIZE)
                                 .collect(Collectors.toList())));
+    }
+
+    @Override
+    public List<BookDto> findBySearchStringAndPage(String searchString, int page)
+    {
+        return findAll().stream()
+                .filter(book -> searchString.equals("")
+                        || book.getTitleRu().toLowerCase().contains(searchString.toLowerCase())
+                        || book.getDescription().toLowerCase().contains(searchString.toLowerCase()))
+                .sorted(Comparator.comparing(BookDto::getId))
+                .skip(PAGE_SIZE * (page - 1))
+                .limit(PAGE_SIZE)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -108,16 +138,101 @@ public class BookServiceImpl implements BookService
     public BookDto create(BookDto bookDto)
     {
         BookDto createdBook = null;
+        AtomicBoolean transactionExceptionWithAuthors = new AtomicBoolean(false);
+        AtomicBoolean transactionExceptionWithGenres = new AtomicBoolean(false);
+        AtomicBoolean transactionExceptionWithPhotos = new AtomicBoolean(false);
         try
         {
-            Book newBook = BookFactory.getInstance().create(bookDto);
-            Optional<Book> book = bookDao.create(newBook);
-            if (book.isEmpty()) { throw new TransactionException("Can't create a new book"); }
-            createdBook = book.map(this::convertToDto).orElse(null);
+            final Connection conn = POOL.retrieveConnection();
+            conn.setAutoCommit(false);
+            Savepoint savepoint = conn.setSavepoint("savepoint");
+            try
+            {
+                Book newBook = BookFactory.getInstance().create(bookDto);
+                Optional<Book> book = bookDao.create(conn, newBook);
+                if (book.isEmpty())
+                {
+                    throw new TransactionException("Can't create a new book");
+                }
+
+                List<Long> authorIds = bookDto.getAuthors().stream()
+                        .map(Author::getId).collect(Collectors.toList());
+
+                authorIds.forEach(authorId ->
+                {
+                    RelationRecord record = RelationRecord.builder()
+                            .firstId(bookDto.getId())
+                            .secondId(authorId)
+                            .build();
+                    if (bookAuthorDao.create(conn, record).isEmpty())
+                    {
+                        transactionExceptionWithAuthors.set(true);
+                    }
+                });
+
+                if (transactionExceptionWithAuthors.get())
+                {
+                    throw new TransactionException("Can't update book authors: " +
+                            "exception while trying to insert new book-author relations");
+                }
+
+                List<Long> genreIds = bookDto.getGenres().stream()
+                        .map(Genre::getId).collect(Collectors.toList());
+
+                genreIds.forEach(genreId ->
+                {
+                    RelationRecord record = RelationRecord.builder()
+                            .firstId(bookDto.getId())
+                            .secondId(genreId)
+                            .build();
+                    if (bookGenreDao.create(conn, record).isEmpty())
+                    {
+                        transactionExceptionWithGenres.set(true);
+                    }
+                });
+
+                if (transactionExceptionWithGenres.get())
+                {
+                    throw new TransactionException("Can't update book genres: " +
+                            "exception while trying to insert new book-genre relations");
+                }
+
+                List<String> photoPaths = bookDto.getCoverPhotos();
+                photoPaths.forEach(photoPath ->
+                {
+                    BookCoverPhoto newBookCoverPhoto = BookCoverPhoto.builder()
+                            .bookId(bookDto.getId())
+                            .coverPhotoPath(photoPath)
+                            .build();
+                    if (bookCoverPhotoDao.create(conn, newBookCoverPhoto).isEmpty())
+                    {
+                        transactionExceptionWithPhotos.set(true);
+                    }
+                });
+
+                if (transactionExceptionWithPhotos.get())
+                {
+                    throw new TransactionException("Can't update book cover photos: " +
+                            "exception while trying to insert new book cover photos");
+                }
+
+                conn.commit();
+                createdBook = bookDao.findById(bookDto.getId()).map(this::convertToDto).orElse(null);
+            }
+            catch (TransactionException e)
+            {
+                LOGGER.error("Exception while trying to create a new book: " + e.getLocalizedMessage());
+                conn.rollback(savepoint);
+            }
+            finally
+            {
+                conn.setAutoCommit(true);
+                POOL.returnConnection(conn);
+            }
         }
-        catch (TransactionException e)
+        catch (SQLException e)
         {
-            LOGGER.error("Exception while trying to create a new book: " + e.getLocalizedMessage());
+            LOGGER.error("SQLException while trying to get Connection: " + e.getLocalizedMessage());
         }
         return createdBook;
     }
@@ -129,13 +244,14 @@ public class BookServiceImpl implements BookService
         AtomicBoolean transactionExceptionWithAuthors = new AtomicBoolean(false);
         AtomicBoolean transactionExceptionWithGenres = new AtomicBoolean(false);
         AtomicBoolean transactionExceptionWithPhotos = new AtomicBoolean(false);
-        try (final Connection conn = POOL.retrieveConnection())
+        try
         {
+            final Connection conn = POOL.retrieveConnection();
             conn.setAutoCommit(false);
             Savepoint savepoint = conn.setSavepoint("savepoint");
             try
             {
-                Book book = bookDao.update(BookFactory.getInstance().create(bookDto))
+                Book book = bookDao.update(conn, BookFactory.getInstance().create(bookDto))
                         .orElseThrow(() -> new TransactionException("Can't update book info"));
 
                 BookDto updBook = convertToDto(book);
@@ -146,7 +262,7 @@ public class BookServiceImpl implements BookService
                         .map(Author::getId).collect(Collectors.toList());
                 if (!(authorIdsNew.containsAll(authorIdsOld) && authorIdsOld.containsAll(authorIdsNew)))
                 {
-                    if (!bookAuthorDao.deleteByBookId(bookDto.getId()))
+                    if (!bookAuthorDao.deleteByBookId(conn, bookDto.getId()))
                     {
                         throw new TransactionException("Can't update book authors: " +
                                 "exception while trying to delete old book-author relations");
@@ -157,7 +273,7 @@ public class BookServiceImpl implements BookService
                                 .firstId(bookDto.getId())
                                 .secondId(newAuthorId)
                                 .build();
-                        if (bookAuthorDao.create(record).isEmpty())
+                        if (bookAuthorDao.create(conn, record).isEmpty())
                         {
                             transactionExceptionWithAuthors.set(true);
                         }
@@ -175,7 +291,7 @@ public class BookServiceImpl implements BookService
                         .map(Genre::getId).collect(Collectors.toList());
                 if (!(genreIdsNew.containsAll(genreIdsOld) && genreIdsOld.containsAll(genreIdsNew)))
                 {
-                    if (!bookGenreDao.deleteByBookId(bookDto.getId()))
+                    if (!bookGenreDao.deleteByBookId(conn, bookDto.getId()))
                     {
                         throw new TransactionException("Can't update book genres: " +
                                 "exception while trying to delete old book-genre relations");
@@ -186,7 +302,7 @@ public class BookServiceImpl implements BookService
                                 .firstId(bookDto.getId())
                                 .secondId(newGenreId)
                                 .build();
-                        if (bookGenreDao.create(record).isEmpty())
+                        if (bookGenreDao.create(conn, record).isEmpty())
                         {
                             transactionExceptionWithGenres.set(true);
                         }
@@ -202,7 +318,7 @@ public class BookServiceImpl implements BookService
                 List<String> photoPathsNew = bookDto.getCoverPhotos();
                 if (!(photoPathsNew.containsAll(photoPathsOld) && photoPathsOld.containsAll(photoPathsNew)))
                 {
-                    if (!bookCoverPhotoDao.deleteByBookId(bookDto.getId()))
+                    if (!bookCoverPhotoDao.deleteByBookId(conn, bookDto.getId()))
                     {
                         throw new TransactionException("Can't update book cover photos: " +
                                 "exception while trying to delete old book cover photos");
@@ -213,7 +329,7 @@ public class BookServiceImpl implements BookService
                                 .bookId(bookDto.getId())
                                 .coverPhotoPath(newPhotoPath)
                                 .build();
-                        if (bookCoverPhotoDao.create(newBookCoverPhoto).isEmpty())
+                        if (bookCoverPhotoDao.create(conn, newBookCoverPhoto).isEmpty())
                         {
                             transactionExceptionWithPhotos.set(true);
                         }
@@ -236,6 +352,7 @@ public class BookServiceImpl implements BookService
             finally
             {
                 conn.setAutoCommit(true);
+                POOL.returnConnection(conn);
             }
         }
         catch (SQLException e)
@@ -247,16 +364,6 @@ public class BookServiceImpl implements BookService
 
     @Override
     public int getCountOfPages() { return bookDao.getCountOfPages(); }
-
-    @Override
-    public List<BookDto> findBySearchString(String searchString)
-    {
-        return findAll().stream()
-                .filter(book -> searchString.equals("")
-                        || book.getTitleRu().contains(searchString)
-                        || book.getDescription().contains(searchString))
-                .collect(Collectors.toList());
-    }
 
     @Override
     public void deleteById(long bookId)
@@ -276,12 +383,14 @@ public class BookServiceImpl implements BookService
     @Override
     public boolean addBookPhoto(String photoPath, long bookId)
     {
-        return bookCoverPhotoDao.create(
-                BookCoverPhoto.builder()
+        final Connection conn = POOL.retrieveConnection();
+        boolean isAdded = bookCoverPhotoDao.create(conn, BookCoverPhoto.builder()
                         .bookId(bookId)
                         .coverPhotoPath(photoPath)
                         .build())
                 .isPresent();
+        POOL.returnConnection(conn);
+        return isAdded;
     }
 
     private BookDto convertToDto(Book book)

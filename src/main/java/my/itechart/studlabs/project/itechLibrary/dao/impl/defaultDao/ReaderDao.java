@@ -28,7 +28,9 @@ public class ReaderDao implements DefaultDao<Reader>
     private static final String UPDATE_READER_SQL = "update readers set first_name = ?, last_name = ?, middle_name = ?, passport_number = ?, birth_date = ?, email = ?, address = ? where id = ?";
     private static final String DELETE_READER_SQL = "delete from readers where id = ?";
 
-    private static final String FIND_READERS_FOR_PAGE_WITH_SORTING_SQL = "select id, first_name, last_name, middle_name, passport_number, birth_date, email, address from readers order by ? limit ?";
+    private static final long PAGE_SIZE = 20;
+    private static final String FIND_READERS_FOR_PAGE_WITH_SORTING_SQL = "select id, first_name, last_name, middle_name, passport_number, birth_date, email, address from readers order by COLUMN limit ?,?";
+    private static final String FIND_READERS_FOR_PAGE_WITH_REVERSED_SORTING_SQL = "select id, first_name, last_name, middle_name, passport_number, birth_date, email, address from readers order by COLUMN desc limit ?,?";
 
     public ReaderDao() { }
 
@@ -119,9 +121,36 @@ public class ReaderDao implements DefaultDao<Reader>
         try
         {
             conn = POOL.retrieveConnection();
-            statement = conn.prepareStatement(FIND_READERS_FOR_PAGE_WITH_SORTING_SQL);
-            statement.setString(1, sortingColumn);
-            statement.setString(2, Integer.valueOf(20 * (page - 1)).toString() + ",20");
+            statement = conn.prepareStatement(FIND_READERS_FOR_PAGE_WITH_SORTING_SQL.replace("COLUMN", sortingColumn));
+            statement.setLong(1, PAGE_SIZE * (page - 1));
+            statement.setLong(2, PAGE_SIZE);
+            resultSet = statement.executeQuery();
+            return retrieveReadersFromResultSet(resultSet);
+        }
+        catch (SQLException e)
+        {
+            LOGGER.error("SQLException while trying to find books by sorting & page number: " + e.getLocalizedMessage());
+        }
+        finally
+        {
+            closeStatement(statement);
+            closeResultSet(resultSet);
+            POOL.returnConnection(conn);
+        }
+        return Optional.empty();
+    }
+
+    public Optional<List<Reader>> findByReversedSortingAndPageNumber(String sortingColumn, int page)
+    {
+        PreparedStatement statement = null;
+        ResultSet resultSet = null;
+        Connection conn = null;
+        try
+        {
+            conn = POOL.retrieveConnection();
+            statement = conn.prepareStatement(FIND_READERS_FOR_PAGE_WITH_REVERSED_SORTING_SQL.replace("COLUMN", sortingColumn));
+            statement.setLong(1, PAGE_SIZE * (page - 1));
+            statement.setLong(2, PAGE_SIZE);
             resultSet = statement.executeQuery();
             return retrieveReadersFromResultSet(resultSet);
         }
@@ -172,10 +201,11 @@ public class ReaderDao implements DefaultDao<Reader>
         try
         {
             conn = POOL.retrieveConnection();
-            statement = conn.prepareStatement(CREATE_READER_SQL);
+            statement = conn.prepareStatement(CREATE_READER_SQL, Statement.RETURN_GENERATED_KEYS);
             fillPreparedStatement(reader, statement);
             statement.execute();
-            long newId = statement.getGeneratedKeys().getLong("id");
+            ResultSet resultSet = statement.getGeneratedKeys();
+            long newId = resultSet.next() ? resultSet.getLong(1) : 0L;
             return findById(newId);
         }
         catch (SQLException e)
@@ -202,7 +232,7 @@ public class ReaderDao implements DefaultDao<Reader>
             fillPreparedStatement(reader, statement);
             statement.setLong(8, reader.getId());
             statement.executeUpdate();
-            return Optional.of(reader);
+            return findById(reader.getId());
         }
         catch (SQLException e)
         {

@@ -49,6 +49,16 @@ public class ReaderServiceImpl implements ReaderService
     }
 
     @Override
+    public List<ReaderDto> findByReversedSortingAndPage(String sortingColumn, int page)
+    {
+        return checkOptionalList(
+                readerDao.findByReversedSortingAndPageNumber(sortingColumn, page)
+                        .map(readers -> readers.stream()
+                                .map(this::convertToDto)
+                                .collect(Collectors.toList())));
+    }
+
+    @Override
     public int getCountOfPages() { return readerDao.getCountOfPages(); }
 
     @Override

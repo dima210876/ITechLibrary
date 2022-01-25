@@ -1,8 +1,14 @@
 package my.itechart.studlabs.project.itechLibrary.service.impl;
 
+import my.itechart.studlabs.project.itechLibrary.dao.factory.complexDaoFactory.BookCopyDaoFactory;
+import my.itechart.studlabs.project.itechLibrary.dao.factory.complexDaoFactory.BookCoverPhotoDaoFactory;
+import my.itechart.studlabs.project.itechLibrary.dao.factory.complexDaoFactory.BookDaoFactory;
 import my.itechart.studlabs.project.itechLibrary.dao.factory.defaultDaoFactory.*;
 import my.itechart.studlabs.project.itechLibrary.dao.factory.relativeDaoFactory.BookAuthorDaoFactory;
 import my.itechart.studlabs.project.itechLibrary.dao.factory.relativeDaoFactory.BookGenreDaoFactory;
+import my.itechart.studlabs.project.itechLibrary.dao.impl.complexDao.BookCopyDao;
+import my.itechart.studlabs.project.itechLibrary.dao.impl.complexDao.BookCoverPhotoDao;
+import my.itechart.studlabs.project.itechLibrary.dao.impl.complexDao.BookDao;
 import my.itechart.studlabs.project.itechLibrary.dao.impl.defaultDao.*;
 import my.itechart.studlabs.project.itechLibrary.dao.impl.relativeDao.BookAuthorDao;
 import my.itechart.studlabs.project.itechLibrary.dao.impl.relativeDao.BookGenreDao;
@@ -11,10 +17,14 @@ import my.itechart.studlabs.project.itechLibrary.model.dto.BookCopyDto;
 import my.itechart.studlabs.project.itechLibrary.model.dto.BookDto;
 import my.itechart.studlabs.project.itechLibrary.model.entity.*;
 import my.itechart.studlabs.project.itechLibrary.model.record.RelationRecord;
+import my.itechart.studlabs.project.itechLibrary.pool.ConnectionPool;
 import my.itechart.studlabs.project.itechLibrary.service.BookCopyService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Savepoint;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +33,7 @@ import java.util.stream.Collectors;
 public class BookCopyServiceImpl implements BookCopyService
 {
     private static final BookCopyServiceImpl INSTANCE = new BookCopyServiceImpl();
+    private static final ConnectionPool POOL = ConnectionPool.getInstance();
     private static final Logger LOGGER = LogManager.getLogger(BookCopyServiceImpl.class);
 
     private final BookCopyDao bookCopyDao;
@@ -91,27 +102,47 @@ public class BookCopyServiceImpl implements BookCopyService
         List<BookCopyDto> createdBookCopies = new ArrayList<>();
         try
         {
-            if (bookDao.findById(bookCopyDto.getBookDto().getId()).isEmpty())
+            final Connection conn = POOL.retrieveConnection();
+            conn.setAutoCommit(false);
+            Savepoint savePoint = conn.setSavepoint("savePoint");
+            try
             {
-                throw new TransactionException("Book with id = " + bookCopyDto.getBookDto().getId() +
-                        " doesn't exist");
+                if (bookDao.findById(bookCopyDto.getBookDto().getId()).isEmpty())
+                {
+                    throw new TransactionException("Book with id = " + bookCopyDto.getBookDto().getId() +
+                            " doesn't exist");
+                }
+
+                BookCopy newCopy = BookCopy.builder()
+                        .bookId(bookCopyDto.getBookDto().getId())
+                        .copyStatus(bookCopyDto.getCopyStatus())
+                        .copyState(bookCopyDto.getCopyState())
+                        .build();
+
+                for (int i = 0; i < copyCount; i++)
+                {
+                    Optional<BookCopy> copy = bookCopyDao.create(conn, newCopy);
+                    if (copy.isEmpty()) { throw new TransactionException("Can't create a new book copy"); }
+                    BookCopyDto createdBookCopy = copy.map(this::convertToDto).orElse(null);
+                    createdBookCopies.add(createdBookCopy);
+                }
+                conn.commit();
             }
-            BookCopy newCopy = BookCopy.builder()
-                    .bookId(bookCopyDto.getBookDto().getId())
-                    .copyStatus(bookCopyDto.getCopyStatus())
-                    .copyState(bookCopyDto.getCopyState())
-                    .build();
-            for (int i = 0; i < copyCount; i++)
+            catch (TransactionException e)
             {
-                Optional<BookCopy> copy = bookCopyDao.create(newCopy);
-                if (copy.isEmpty()) { throw new TransactionException("Can't create a new book copy"); }
-                BookCopyDto createdBookCopy = copy.map(this::convertToDto).orElse(null);
-                createdBookCopies.add(createdBookCopy);
+                LOGGER.error("Exception while trying to create new book copies: " + e.getLocalizedMessage());
+                conn.rollback(savePoint);
+                createdBookCopies.clear();
+            }
+            finally
+            {
+                conn.setAutoCommit(true);
+                POOL.returnConnection(conn);
             }
         }
-        catch (TransactionException e)
+        catch (SQLException e)
         {
-            LOGGER.error("Exception while trying to create new book copies: " + e.getLocalizedMessage());
+            LOGGER.error("SQLException while trying to get Connection: " + e.getLocalizedMessage());
         }
         return createdBookCopies;
     }
@@ -187,6 +218,7 @@ public class BookCopyServiceImpl implements BookCopyService
                                     {
                                         case "normal" -> "damaged";
                                         case "damaged" -> "repaired";
+                                        default -> bookCopy.getCopyState();
                                     }
                     )
                     .build();
@@ -207,6 +239,7 @@ public class BookCopyServiceImpl implements BookCopyService
     public BookCopyDto create(BookCopyDto bookCopyDto)
     {
         BookCopyDto createdBookCopy = null;
+        final Connection conn = POOL.retrieveConnection();
         try
         {
             if (bookDao.findById(bookCopyDto.getBookDto().getId()).isEmpty())
@@ -219,13 +252,17 @@ public class BookCopyServiceImpl implements BookCopyService
                     .copyStatus(bookCopyDto.getCopyStatus())
                     .copyState(bookCopyDto.getCopyState())
                     .build();
-            Optional<BookCopy> copy = bookCopyDao.create(newCopy);
+            Optional<BookCopy> copy = bookCopyDao.create(conn, newCopy);
             if (copy.isEmpty()) { throw new TransactionException("Can't create a new book copy"); }
             createdBookCopy = copy.map(this::convertToDto).orElse(null);
         }
         catch (TransactionException e)
         {
             LOGGER.error("Exception while trying to create a new book copy: " + e.getLocalizedMessage());
+        }
+        finally
+        {
+            POOL.returnConnection(conn);
         }
         return createdBookCopy;
     }
@@ -234,6 +271,7 @@ public class BookCopyServiceImpl implements BookCopyService
     public BookCopyDto update(BookCopyDto bookCopyDto)
     {
         BookCopyDto updatedBookCopy = null;
+        final Connection conn = POOL.retrieveConnection();
         try
         {
             BookCopy newCopy = BookCopy.builder()
@@ -241,13 +279,17 @@ public class BookCopyServiceImpl implements BookCopyService
                     .copyStatus(bookCopyDto.getCopyStatus())
                     .copyState(bookCopyDto.getCopyState())
                     .build();
-            bookCopyDao.update(newCopy).orElseThrow(() -> new TransactionException("Can't update a book copy"));
+            bookCopyDao.update(conn, newCopy).orElseThrow(() -> new TransactionException("Can't update a book copy"));
             updatedBookCopy = bookCopyDao.findById(bookCopyDto.getId()).map(this::convertToDto).orElse(null);
         }
         catch (TransactionException e)
         {
             LOGGER.error("Exception while trying to update book copy with id = " + bookCopyDto.getId() +
                     ": " + e.getLocalizedMessage());
+        }
+        finally
+        {
+            POOL.returnConnection(conn);
         }
         return updatedBookCopy;
     }

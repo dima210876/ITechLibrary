@@ -1,8 +1,10 @@
 package my.itechart.studlabs.project.itechLibrary.service.impl;
 
+import my.itechart.studlabs.project.itechLibrary.dao.factory.complexDaoFactory.*;
 import my.itechart.studlabs.project.itechLibrary.dao.factory.defaultDaoFactory.*;
 import my.itechart.studlabs.project.itechLibrary.dao.factory.relativeDaoFactory.BookAuthorDaoFactory;
 import my.itechart.studlabs.project.itechLibrary.dao.factory.relativeDaoFactory.BookGenreDaoFactory;
+import my.itechart.studlabs.project.itechLibrary.dao.impl.complexDao.*;
 import my.itechart.studlabs.project.itechLibrary.dao.impl.defaultDao.*;
 import my.itechart.studlabs.project.itechLibrary.dao.impl.relativeDao.BookAuthorDao;
 import my.itechart.studlabs.project.itechLibrary.dao.impl.relativeDao.BookGenreDao;
@@ -58,6 +60,8 @@ public class BorrowServiceImpl implements BorrowService
         this.bookGenreDao = BookGenreDaoFactory.getInstance().getDao();
         this.bookCoverPhotoDao = BookCoverPhotoDaoFactory.getInstance().getDao();
     }
+
+    public static BorrowServiceImpl getInstance() { return INSTANCE; }
 
     @Override
     public List<BorrowDto> findAll()
@@ -117,10 +121,11 @@ public class BorrowServiceImpl implements BorrowService
         AtomicBoolean transactionExceptionWithBorrowBooksCopies = new AtomicBoolean(false);
         AtomicBoolean transactionExceptionWithBorrowBooksCopyDamagePhotos = new AtomicBoolean(false);
         AtomicBoolean transactionExceptionWithBooksCopies = new AtomicBoolean(false);
-        try (final Connection conn = POOL.retrieveConnection())
+        try
         {
+            final Connection conn = POOL.retrieveConnection();
             conn.setAutoCommit(false);
-            Savepoint savepoint = conn.setSavepoint("savepoint");
+            Savepoint savePoint = conn.setSavepoint("savePoint");
             try
             {
                 Borrow currentBorrow = borrowDao.findById(borrowDto.getId())
@@ -136,7 +141,7 @@ public class BorrowServiceImpl implements BorrowService
                                     .bookCopyId(record.getBookCopyDto().getId())
                                     .bookCopyRating(record.getBookCopyRating())
                                     .build();
-                            if (borrowBooksCopyDao.update(updBorrowBooksCopy).isEmpty())
+                            if (borrowBooksCopyDao.update(conn, updBorrowBooksCopy).isEmpty())
                             {
                                 transactionExceptionWithBorrowBooksCopies.set(true);
                             }
@@ -147,7 +152,7 @@ public class BorrowServiceImpl implements BorrowService
                                                 .borrowBooksCopyId(record.getId())
                                                 .damagePhotoPath(damagePhoto)
                                                 .build();
-                                        if (borrowBooksCopyDamagePhotoDao.create(photo).isEmpty())
+                                        if (borrowBooksCopyDamagePhotoDao.create(conn, photo).isEmpty())
                                         {
                                             transactionExceptionWithBorrowBooksCopyDamagePhotos.set(true);
                                         }
@@ -159,7 +164,7 @@ public class BorrowServiceImpl implements BorrowService
                                     .copyStatus(record.getBookCopyDto().getCopyStatus())
                                     .copyState(record.getBookCopyDto().getCopyState())
                                     .build();
-                            if (bookCopyDao.update(bookCopy).isEmpty())
+                            if (bookCopyDao.update(conn, bookCopy).isEmpty())
                             {
                                 transactionExceptionWithBooksCopies.set(true);
                             }
@@ -176,9 +181,10 @@ public class BorrowServiceImpl implements BorrowService
                 {
                     throw new TransactionException("Can't update books copies");
                 }
-                if (!borrowDao.updateBorrowStatusToReturned(currentBorrow.getId()))
+                if (!borrowDao.updateBorrowCostAndStatusToReturned(conn, currentBorrow.getId(), borrowDto.getCost()))
                 {
-                    throw new TransactionException("Can't update status to 'returned' in borrow with id = " + borrowDto.getId());
+                    throw new TransactionException("Can't update borrow cost and status to 'returned' in borrow with id = "
+                            + borrowDto.getId());
                 }
                 conn.commit();
             }
@@ -186,12 +192,13 @@ public class BorrowServiceImpl implements BorrowService
             {
                 LOGGER.error("Exception while trying to return borrow with id = " + borrowDto.getId() +
                         ": " + e.getLocalizedMessage());
-                conn.rollback(savepoint);
+                conn.rollback(savePoint);
                 return false;
             }
             finally
             {
                 conn.setAutoCommit(true);
+                POOL.returnConnection(conn);
             }
         }
         catch (SQLException e)
@@ -206,22 +213,76 @@ public class BorrowServiceImpl implements BorrowService
     public BorrowDto create(BorrowDto borrowDto)
     {
         BorrowDto createdBorrow = null;
+        AtomicBoolean transactionExceptionWithBorrowBooksCopies = new AtomicBoolean(false);
+        AtomicBoolean transactionExceptionWithBooksCopies = new AtomicBoolean(false);
         try
         {
-            Borrow newBorrow = BorrowFactory.getInstance().create(borrowDto);
-            Optional<Borrow> borrow = borrowDao.create(newBorrow);
-            if (borrow.isEmpty()) { throw new TransactionException("Can't create a new borrow"); }
+            final Connection conn = POOL.retrieveConnection();
+            conn.setAutoCommit(false);
+            Savepoint savePoint = conn.setSavepoint("savePoint");
+            try
+            {
+                if (readerDao.findById(borrowDto.getReader().getId()).isEmpty())
+                {
+                    throw new TransactionException("Reader with id = " + borrowDto.getReader().getId() +
+                            " not found");
+                }
+                Borrow newBorrow = BorrowFactory.getInstance().create(borrowDto);
+                Optional<Borrow> borrow = borrowDao.create(conn, newBorrow);
+                if (borrow.isEmpty()) { throw new TransactionException("Can't create a new borrow"); }
 
+                List<BorrowRecordDto> records = borrowDto.getRecords();
+                records.forEach(record ->
+                {
+                    BorrowBooksCopy newBorrowBooksCopy = BorrowBooksCopy.builder()
+                            .id(record.getId())
+                            .borrowId(borrowDto.getId())
+                            .bookCopyId(record.getBookCopyDto().getId())
+                            .bookCopyRating(record.getBookCopyRating())
+                            .build();
+                    if (borrowBooksCopyDao.create(conn, newBorrowBooksCopy).isEmpty())
+                    {
+                        transactionExceptionWithBorrowBooksCopies.set(true);
+                    }
 
+                    BookCopy bookCopy = BookCopy.builder()
+                            .id(record.getBookCopyDto().getId())
+                            .bookId(record.getBookCopyDto().getBookDto().getId())
+                            .copyStatus(record.getBookCopyDto().getCopyStatus())
+                            .copyState(record.getBookCopyDto().getCopyState())
+                            .build();
+                    if (bookCopyDao.update(conn, bookCopy).isEmpty())
+                    {
+                        transactionExceptionWithBooksCopies.set(true);
+                    }
+                });
 
-
-
-
-            createdBorrow = borrow.map(this::convertToDto).orElse(null);
+                if (transactionExceptionWithBorrowBooksCopies.get())
+                {
+                    throw new TransactionException("Can't create borrow books copies");
+                }
+                if (transactionExceptionWithBooksCopies.get())
+                {
+                    throw new TransactionException("Can't update books copies");
+                }
+                conn.commit();
+                createdBorrow = borrow.map(this::convertToDto).orElse(null);
+            }
+            catch (TransactionException e)
+            {
+                LOGGER.error("Exception while trying to create borrow for reader with id = "
+                        + borrowDto.getReader().getId() + ": " + e.getLocalizedMessage());
+                conn.rollback(savePoint);
+            }
+            finally
+            {
+                conn.setAutoCommit(true);
+                POOL.returnConnection(conn);
+            }
         }
-        catch (TransactionException e)
+        catch (SQLException e)
         {
-            LOGGER.error("Exception while trying to create a new borrow: " + e.getLocalizedMessage());
+            LOGGER.error("SQLException while trying to get Connection: " + e.getLocalizedMessage());
         }
         return createdBorrow;
     }
@@ -230,9 +291,10 @@ public class BorrowServiceImpl implements BorrowService
     public BorrowDto update(BorrowDto borrowDto)
     {
         BorrowDto updatedBorrow = null;
+        final Connection conn = POOL.retrieveConnection();
         try
         {
-            borrowDao.update(BorrowFactory.getInstance().create(borrowDto))
+            borrowDao.update(conn, BorrowFactory.getInstance().create(borrowDto))
                     .orElseThrow(() -> new TransactionException("Can't update a borrow"));
             updatedBorrow = borrowDao.findById(borrowDto.getId()).map(this::convertToDto).orElse(null);
         }
@@ -240,6 +302,10 @@ public class BorrowServiceImpl implements BorrowService
         {
             LOGGER.error("Exception while trying to update reader with id = " + borrowDto.getId() +
                     ": " + e.getLocalizedMessage());
+        }
+        finally
+        {
+            POOL.returnConnection(conn);
         }
         return updatedBorrow;
     }
