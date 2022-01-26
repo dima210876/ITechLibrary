@@ -195,7 +195,7 @@ public class BookDao implements ComplexDao<Book>
     }
 
     @Override
-    public Optional<Book> create(Connection conn, Book book)
+    public long create(Connection conn, Book book)
     {
         PreparedStatement statement = null;
         try
@@ -204,8 +204,7 @@ public class BookDao implements ComplexDao<Book>
             fillPreparedStatement(book, statement);
             statement.execute();
             ResultSet resultSet = statement.getGeneratedKeys();
-            long newId = resultSet.next() ? resultSet.getLong(1) : 0L;
-            return findById(newId);
+            return resultSet.next() ? resultSet.getLong(1) : 0L; //id of created book, otherwise 0
         }
         catch (SQLException e)
         {
@@ -215,11 +214,11 @@ public class BookDao implements ComplexDao<Book>
         {
             closeStatement(statement);
         }
-        return Optional.empty();
+        return 0L;
     }
 
     @Override
-    public Optional<Book> update(Connection conn, Book book)
+    public boolean update(Connection conn, Book book)
     {
         PreparedStatement statement = null;
         try
@@ -228,7 +227,7 @@ public class BookDao implements ComplexDao<Book>
             fillPreparedStatement(book, statement);
             statement.setLong(9, book.getId());
             statement.executeUpdate();
-            return findById(book.getId());
+            return true;
         }
         catch (SQLException e)
         {
@@ -239,7 +238,7 @@ public class BookDao implements ComplexDao<Book>
         {
             closeStatement(statement);
         }
-        return Optional.empty();
+        return false;
     }
 
     @Override

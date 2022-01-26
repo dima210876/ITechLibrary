@@ -18,9 +18,9 @@ public interface ComplexDao<T>
 
     int getCountOfPages();
 
-    Optional<T> create(Connection conn, T entity);
+    long create(Connection conn, T entity);
 
-    Optional<T> update(Connection conn, T entity);
+    boolean update(Connection conn, T entity);
 
     boolean delete(long id);
 

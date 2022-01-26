@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-@WebFilter(urlPatterns = {"/controller"})
+@WebFilter(filterName = "BookCreationFilter", urlPatterns = {"/controller"})
 public class BookCreationFilter implements Filter
 {
     private static final String COMMAND_PARAMETER_NAME = "command";

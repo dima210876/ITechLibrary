@@ -139,7 +139,7 @@ public class BookAuthorDao implements RelativeDao
     }
 
     @Override
-    public Optional<RelationRecord> create(Connection conn, RelationRecord relationRecord)
+    public long create(Connection conn, RelationRecord relationRecord)
     {
         PreparedStatement statement = null;
         try
@@ -149,8 +149,7 @@ public class BookAuthorDao implements RelativeDao
             statement.setLong(2, relationRecord.getSecondId());
             statement.execute();
             ResultSet resultSet = statement.getGeneratedKeys();
-            long newId = resultSet.next() ? resultSet.getLong(1) : 0L;
-            return findById(newId);
+            return resultSet.next() ? resultSet.getLong(1) : 0L; //id of created relation record, otherwise 0
         }
         catch (SQLException e)
         {
@@ -161,7 +160,7 @@ public class BookAuthorDao implements RelativeDao
         {
             closeStatement(statement);
         }
-        return Optional.empty();
+        return 0L;
     }
 
     @Override

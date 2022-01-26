@@ -139,7 +139,7 @@ public class BookCoverPhotoDao implements ComplexDao<BookCoverPhoto>
     }
 
     @Override
-    public Optional<BookCoverPhoto> create(Connection conn, BookCoverPhoto bookCoverPhoto)
+    public long create(Connection conn, BookCoverPhoto bookCoverPhoto)
     {
         PreparedStatement statement = null;
         try
@@ -149,8 +149,7 @@ public class BookCoverPhotoDao implements ComplexDao<BookCoverPhoto>
             statement.setString(2, bookCoverPhoto.getCoverPhotoPath());
             statement.execute();
             ResultSet resultSet = statement.getGeneratedKeys();
-            long newId = resultSet.next() ? resultSet.getLong(1) : 0L;
-            return findById(newId);
+            return resultSet.next() ? resultSet.getLong(1) : 0L; //id of created book cover photo, otherwise 0
         }
         catch (SQLException e)
         {
@@ -160,11 +159,11 @@ public class BookCoverPhotoDao implements ComplexDao<BookCoverPhoto>
         {
             closeStatement(statement);
         }
-        return Optional.empty();
+        return 0L;
     }
 
     @Override
-    public Optional<BookCoverPhoto> update(Connection conn, BookCoverPhoto bookCoverPhoto)
+    public boolean update(Connection conn, BookCoverPhoto bookCoverPhoto)
     {
         PreparedStatement statement = null;
         try
@@ -173,7 +172,7 @@ public class BookCoverPhotoDao implements ComplexDao<BookCoverPhoto>
             statement.setString(1, bookCoverPhoto.getCoverPhotoPath());
             statement.setLong(2, bookCoverPhoto.getId());
             statement.executeUpdate();
-            return findById(bookCoverPhoto.getId());
+            return true;
         }
         catch (SQLException e)
         {
@@ -184,7 +183,7 @@ public class BookCoverPhotoDao implements ComplexDao<BookCoverPhoto>
         {
             closeStatement(statement);
         }
-        return Optional.empty();
+        return false;
     }
 
     @Override

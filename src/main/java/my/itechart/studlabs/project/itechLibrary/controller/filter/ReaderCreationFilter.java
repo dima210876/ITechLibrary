@@ -13,7 +13,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 
-@WebFilter(urlPatterns = {"/controller"})
+@WebFilter(filterName = "ReaderCreationFilter", urlPatterns = {"/controller"})
 public class ReaderCreationFilter implements Filter
 {
     private final ReaderService readerService = ReaderServiceImpl.getInstance();
@@ -29,7 +29,7 @@ public class ReaderCreationFilter implements Filter
 
     private static final String ERROR_ATTRIBUTE_NAME = "errorMsg";
     private static final String ERROR_ATTRIBUTE_VALUE = "Введены некорректные данные!" +
-            " Электронная почта и номер паспорта (при указании) должны быть уникальными, а дата рождения допустимой.";
+            " Электронная почта и номер паспорта (при указании) должны быть уникальными, а дата рождения - допустимой.";
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException { }

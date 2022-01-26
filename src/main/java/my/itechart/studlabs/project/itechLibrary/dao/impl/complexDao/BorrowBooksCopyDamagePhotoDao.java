@@ -139,7 +139,7 @@ public class BorrowBooksCopyDamagePhotoDao implements ComplexDao<BorrowBooksCopy
     }
 
     @Override
-    public Optional<BorrowBooksCopyDamagePhoto> create(Connection conn, BorrowBooksCopyDamagePhoto borrowBooksCopyDamagePhoto)
+    public long create(Connection conn, BorrowBooksCopyDamagePhoto borrowBooksCopyDamagePhoto)
     {
         PreparedStatement statement = null;
         try
@@ -149,8 +149,7 @@ public class BorrowBooksCopyDamagePhotoDao implements ComplexDao<BorrowBooksCopy
             statement.setString(2, borrowBooksCopyDamagePhoto.getDamagePhotoPath());
             statement.execute();
             ResultSet resultSet = statement.getGeneratedKeys();
-            long newId = resultSet.next() ? resultSet.getLong(1) : 0L;
-            return findById(newId);
+            return resultSet.next() ? resultSet.getLong(1) : 0L; //id of created row, otherwise 0
         }
         catch (SQLException e)
         {
@@ -160,11 +159,11 @@ public class BorrowBooksCopyDamagePhotoDao implements ComplexDao<BorrowBooksCopy
         {
             closeStatement(statement);
         }
-        return Optional.empty();
+        return 0L;
     }
 
     @Override
-    public Optional<BorrowBooksCopyDamagePhoto> update(Connection conn, BorrowBooksCopyDamagePhoto borrowBooksCopyDamagePhoto)
+    public boolean update(Connection conn, BorrowBooksCopyDamagePhoto borrowBooksCopyDamagePhoto)
     {
         PreparedStatement statement = null;
         try
@@ -173,7 +172,7 @@ public class BorrowBooksCopyDamagePhotoDao implements ComplexDao<BorrowBooksCopy
             statement.setString(1, borrowBooksCopyDamagePhoto.getDamagePhotoPath());
             statement.setLong(2, borrowBooksCopyDamagePhoto.getId());
             statement.executeUpdate();
-            return findById(borrowBooksCopyDamagePhoto.getId());
+            return true;
         }
         catch (SQLException e)
         {
@@ -184,7 +183,7 @@ public class BorrowBooksCopyDamagePhotoDao implements ComplexDao<BorrowBooksCopy
         {
             closeStatement(statement);
         }
-        return Optional.empty();
+        return false;
     }
 
     @Override

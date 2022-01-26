@@ -100,11 +100,12 @@ public class BookCopyServiceImpl implements BookCopyService
     public List<BookCopyDto> createNewCopies(BookCopyDto bookCopyDto, int copyCount)
     {
         List<BookCopyDto> createdBookCopies = new ArrayList<>();
+        List<Long> createdBookCopiesIds = new ArrayList<>();
         try
         {
             final Connection conn = POOL.retrieveConnection();
             conn.setAutoCommit(false);
-            Savepoint savePoint = conn.setSavepoint("savePoint");
+            Savepoint savePoint = conn.setSavepoint("savepoint");
             try
             {
                 if (bookDao.findById(bookCopyDto.getBookDto().getId()).isEmpty())
@@ -121,18 +122,23 @@ public class BookCopyServiceImpl implements BookCopyService
 
                 for (int i = 0; i < copyCount; i++)
                 {
-                    Optional<BookCopy> copy = bookCopyDao.create(conn, newCopy);
-                    if (copy.isEmpty()) { throw new TransactionException("Can't create a new book copy"); }
-                    BookCopyDto createdBookCopy = copy.map(this::convertToDto).orElse(null);
+                    long newCopyId = bookCopyDao.create(conn, newCopy);
+                    if (newCopyId == 0L) { throw new TransactionException("Can't create a new book copy"); }
+                    createdBookCopiesIds.add(newCopyId);
+                }
+
+                conn.commit();
+
+                for (long bookCopyId : createdBookCopiesIds)
+                {
+                    BookCopyDto createdBookCopy = bookCopyDao.findById(bookCopyId).map(this::convertToDto).orElse(null);
                     createdBookCopies.add(createdBookCopy);
                 }
-                conn.commit();
             }
             catch (TransactionException e)
             {
                 LOGGER.error("Exception while trying to create new book copies: " + e.getLocalizedMessage());
                 conn.rollback(savePoint);
-                createdBookCopies.clear();
             }
             finally
             {
@@ -252,9 +258,9 @@ public class BookCopyServiceImpl implements BookCopyService
                     .copyStatus(bookCopyDto.getCopyStatus())
                     .copyState(bookCopyDto.getCopyState())
                     .build();
-            Optional<BookCopy> copy = bookCopyDao.create(conn, newCopy);
-            if (copy.isEmpty()) { throw new TransactionException("Can't create a new book copy"); }
-            createdBookCopy = copy.map(this::convertToDto).orElse(null);
+            long createdBookCopyId = bookCopyDao.create(conn, newCopy);
+            if (createdBookCopyId == 0L) { throw new TransactionException("Can't create a new book copy"); }
+            createdBookCopy = bookCopyDao.findById(createdBookCopyId).map(this::convertToDto).orElse(null);
         }
         catch (TransactionException e)
         {
@@ -279,7 +285,7 @@ public class BookCopyServiceImpl implements BookCopyService
                     .copyStatus(bookCopyDto.getCopyStatus())
                     .copyState(bookCopyDto.getCopyState())
                     .build();
-            bookCopyDao.update(conn, newCopy).orElseThrow(() -> new TransactionException("Can't update a book copy"));
+            if (!bookCopyDao.update(conn, newCopy)) { throw new TransactionException("Can't update a book copy"); }
             updatedBookCopy = bookCopyDao.findById(bookCopyDto.getId()).map(this::convertToDto).orElse(null);
         }
         catch (TransactionException e)

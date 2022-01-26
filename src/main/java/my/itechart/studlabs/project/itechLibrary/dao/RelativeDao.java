@@ -18,7 +18,7 @@ public interface RelativeDao
 
     Optional<List<RelationRecord>> findAll();
 
-    Optional<RelationRecord> create(Connection conn, RelationRecord relationRecord);
+    long create(Connection conn, RelationRecord relationRecord);
 
     boolean delete(long id);
 

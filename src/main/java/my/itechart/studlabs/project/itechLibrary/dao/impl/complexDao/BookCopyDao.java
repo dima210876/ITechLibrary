@@ -222,7 +222,7 @@ public class BookCopyDao implements ComplexDao<BookCopy>
     }
 
     @Override
-    public Optional<BookCopy> create(Connection conn, BookCopy bookCopy)
+    public long create(Connection conn, BookCopy bookCopy)
     {
         PreparedStatement statement = null;
         try
@@ -233,8 +233,7 @@ public class BookCopyDao implements ComplexDao<BookCopy>
             statement.setString(3, bookCopy.getCopyState());
             statement.execute();
             ResultSet resultSet = statement.getGeneratedKeys();
-            long newId = resultSet.next() ? resultSet.getLong(1) : 0L;
-            return findById(newId);
+            return resultSet.next() ? resultSet.getLong(1) : 0L; //id of created book copy, otherwise 0
         }
         catch (SQLException e)
         {
@@ -244,11 +243,11 @@ public class BookCopyDao implements ComplexDao<BookCopy>
         {
             closeStatement(statement);
         }
-        return Optional.empty();
+        return 0L;
     }
 
     @Override
-    public Optional<BookCopy> update(Connection conn, BookCopy bookCopy)
+    public boolean update(Connection conn, BookCopy bookCopy)
     {
         PreparedStatement statement = null;
         try
@@ -258,7 +257,7 @@ public class BookCopyDao implements ComplexDao<BookCopy>
             statement.setString(2, bookCopy.getCopyState());
             statement.setLong(3, bookCopy.getId());
             statement.executeUpdate();
-            return findById(bookCopy.getId());
+            return true;
         }
         catch (SQLException e)
         {
@@ -269,7 +268,7 @@ public class BookCopyDao implements ComplexDao<BookCopy>
         {
             closeStatement(statement);
         }
-        return Optional.empty();
+        return false;
     }
 
     @Override

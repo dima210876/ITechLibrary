@@ -169,7 +169,7 @@ public class BorrowBooksCopyDao implements ComplexDao<BorrowBooksCopy>
     }
 
     @Override
-    public Optional<BorrowBooksCopy> create(Connection conn, BorrowBooksCopy borrowBooksCopy)
+    public long create(Connection conn, BorrowBooksCopy borrowBooksCopy)
     {
         PreparedStatement statement = null;
         try
@@ -180,8 +180,7 @@ public class BorrowBooksCopyDao implements ComplexDao<BorrowBooksCopy>
             statement.setDouble(3, borrowBooksCopy.getBookCopyRating());
             statement.execute();
             ResultSet resultSet = statement.getGeneratedKeys();
-            long newId = resultSet.next() ? resultSet.getLong(1) : 0L;
-            return findById(newId);
+            return resultSet.next() ? resultSet.getLong(1) : 0L; //id of created borrowBooksCopy, otherwise 0
         }
         catch (SQLException e)
         {
@@ -191,11 +190,11 @@ public class BorrowBooksCopyDao implements ComplexDao<BorrowBooksCopy>
         {
             closeStatement(statement);
         }
-        return Optional.empty();
+        return 0L;
     }
 
     @Override
-    public Optional<BorrowBooksCopy> update(Connection conn, BorrowBooksCopy borrowBooksCopy)
+    public boolean update(Connection conn, BorrowBooksCopy borrowBooksCopy)
     {
         PreparedStatement statement = null;
         try
@@ -204,7 +203,7 @@ public class BorrowBooksCopyDao implements ComplexDao<BorrowBooksCopy>
             statement.setDouble(1, borrowBooksCopy.getBookCopyRating());
             statement.setLong(2,borrowBooksCopy.getId());
             statement.executeUpdate();
-            return findById(borrowBooksCopy.getId());
+            return true;
         }
         catch (SQLException e)
         {
@@ -215,7 +214,7 @@ public class BorrowBooksCopyDao implements ComplexDao<BorrowBooksCopy>
         {
             closeStatement(statement);
         }
-        return Optional.empty();
+        return false;
     }
 
     @Override

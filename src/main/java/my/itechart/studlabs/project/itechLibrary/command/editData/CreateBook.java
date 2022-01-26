@@ -74,8 +74,8 @@ public enum CreateBook implements Command
         List<Author> authors = new ArrayList<>();
         List<Genre> genres = new ArrayList<>();
 
-        String bookAuthors[] = request.getParameterValues(AUTHORS_PARAMETER_NAME);
-        String bookGenres[] = request.getParameterValues(GENRES_PARAMETER_NAME);
+        String[] bookAuthors = request.getParameterValues(AUTHORS_PARAMETER_NAME);
+        String[] bookGenres = request.getParameterValues(GENRES_PARAMETER_NAME);
         for (String authorId: bookAuthors)
         {
             long id = Long.parseLong(authorId.trim());

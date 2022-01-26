@@ -251,7 +251,7 @@ public class BorrowDao implements ComplexDao<Borrow>
     }
 
     @Override
-    public Optional<Borrow> create(Connection conn, Borrow borrow)
+    public long create(Connection conn, Borrow borrow)
     {
         PreparedStatement statement = null;
         try
@@ -266,8 +266,7 @@ public class BorrowDao implements ComplexDao<Borrow>
             statement.setDouble(7, borrow.getCost());
             statement.execute();
             ResultSet resultSet = statement.getGeneratedKeys();
-            long newId = resultSet.next() ? resultSet.getLong(1) : 0L;
-            return findById(newId);
+            return resultSet.next() ? resultSet.getLong(1) : 0L; //id of created borrow, otherwise 0
         }
         catch (SQLException e)
         {
@@ -277,11 +276,11 @@ public class BorrowDao implements ComplexDao<Borrow>
         {
             closeStatement(statement);
         }
-        return Optional.empty();
+        return 0L;
     }
 
     @Override
-    public Optional<Borrow> update(Connection conn, Borrow borrow)
+    public boolean update(Connection conn, Borrow borrow)
     {
         PreparedStatement statement = null;
         try
@@ -295,7 +294,7 @@ public class BorrowDao implements ComplexDao<Borrow>
             statement.setDouble(6, borrow.getCost());
             statement.setLong(7, borrow.getId());
             statement.executeUpdate();
-            return findById(borrow.getId());
+            return true;
         }
         catch (SQLException e)
         {
@@ -306,7 +305,7 @@ public class BorrowDao implements ComplexDao<Borrow>
         {
             closeStatement(statement);
         }
-        return Optional.empty();
+        return false;
     }
 
     @Override
