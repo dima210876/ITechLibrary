@@ -97,6 +97,6 @@ public enum CreateBook implements Command
             request.setAttribute(ERROR_ATTRIBUTE_NAME, ERROR_ATTRIBUTE_VALUE);
             return ShowBookCreationForm.INSTANCE.execute(request);
         }
-        return ShowMainPage.INSTANCE.execute(request);
+        return RedirectToIndexPage.INSTANCE.execute(request);
     }
 }

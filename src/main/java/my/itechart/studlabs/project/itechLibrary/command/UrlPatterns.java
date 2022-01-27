@@ -9,6 +9,8 @@ public class UrlPatterns
     public static final String READER = "/readerPage.jsp";
     public static final String CREATE_BOOK = "/createBook.jsp";
     public static final String CREATE_READER = "/createReader.jsp";
-    public static final String CREATE_BORROW = "/createBorrow.jsp";
+    public static final String CREATE_BORROW_ORDER = "/createBorrow1.jsp";
+    public static final String CONFIRM_BORROW_ORDER = "/createBorrow2.jsp";
+    public static final String CREATE_BORROW = "/createBorrow2.jsp";
     public static final String RETURN_BORROW = "/returnBorrow.jsp";
 }

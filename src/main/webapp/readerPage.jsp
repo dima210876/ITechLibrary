@@ -28,7 +28,7 @@
                 <p class="text-danger mt-5">У читателя есть невозвращённый займ c ID = ${notReturnedBorrow.id}.</p>
                 <div class="container">
                     <a class="btn btn-warning mt-3"
-                       href="${pageContext.request.contextPath}/controller?command=showBorrow&borrowId=${notReturnedBorrow.id}">
+                       href="${pageContext.request.contextPath}/controller?command=return_borrow&borrowId=${notReturnedBorrow.id}">
                         Возврат книг
                     </a>
                 </div>
@@ -36,7 +36,7 @@
             <c:otherwise>
                 <p class="text-success mt-5">У читателя нет задолженностей перед библиотекой.</p>
                 <a class="btn btn-success mt-3"
-                   href="${pageContext.request.contextPath}/controller?command=createBorrow&readerId=${reader.id}">
+                   href="${pageContext.request.contextPath}/controller?command=create_borrow_order&readerId=${reader.id}">
                     Выдача книг
                 </a>
             </c:otherwise>
