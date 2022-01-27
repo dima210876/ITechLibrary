@@ -3,8 +3,10 @@ package my.itechart.studlabs.project.itechLibrary.command.editData;
 import my.itechart.studlabs.project.itechLibrary.command.Command;
 import my.itechart.studlabs.project.itechLibrary.command.RequestContext;
 import my.itechart.studlabs.project.itechLibrary.command.ResponseContext;
+import my.itechart.studlabs.project.itechLibrary.command.UrlPatterns;
 import my.itechart.studlabs.project.itechLibrary.command.inputForms.ShowBookCreationForm;
 import my.itechart.studlabs.project.itechLibrary.command.inputForms.ShowReaderCreationForm;
+import my.itechart.studlabs.project.itechLibrary.command.page.RedirectToIndexPage;
 import my.itechart.studlabs.project.itechLibrary.command.page.ShowMainPage;
 import my.itechart.studlabs.project.itechLibrary.command.page.ShowReadersPage;
 import my.itechart.studlabs.project.itechLibrary.dao.factory.defaultDaoFactory.AuthorDaoFactory;
@@ -40,9 +42,6 @@ public enum CreateBook implements Command
     private static final String AUTHORS_PARAMETER_NAME = "bookAuthors";
     private static final String GENRES_PARAMETER_NAME = "bookGenres";
 
-    private static final String COMMAND_PARAMETER_NAME = "command";
-
-    private static final String SHOW_BOOKS_COMMAND_VALUE = "main";
     private static final String ERROR_ATTRIBUTE_NAME = "errorMsg";
     private static final String EMPTY_ATTRIBUTE_VALUE = "null";
     private static final String ERROR_ATTRIBUTE_VALUE = "Книгу сохранить не удалось.";
@@ -98,7 +97,6 @@ public enum CreateBook implements Command
             request.setAttribute(ERROR_ATTRIBUTE_NAME, ERROR_ATTRIBUTE_VALUE);
             return ShowBookCreationForm.INSTANCE.execute(request);
         }
-        request.setAttribute(COMMAND_PARAMETER_NAME, SHOW_BOOKS_COMMAND_VALUE);
         return ShowMainPage.INSTANCE.execute(request);
     }
 }

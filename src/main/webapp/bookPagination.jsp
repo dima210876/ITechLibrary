@@ -13,24 +13,24 @@
             <c:if test="${pageNumber > 1}">
                 <c:if test="${pageNumber > 2}">
                     <a class="btn btn-outline-primary"
-                       href="${pageContext.request.contextPath}/controller?command=${command}&sortingColumn=${sortingColumn}&reversedOrder=${reversedOrder}&pageNumber=1"> 1 </a>
+                       href="${pageContext.request.contextPath}/controller?command=main&sortingColumn=${sortingColumn}&reversedOrder=${reversedOrder}&pageNumber=1"> 1 </a>
                     <c:if test="${pageNumber > 3}">
                         ...
                     </c:if>
                 </c:if>
                 <a class="btn btn-outline-primary"
-                   href="${pageContext.request.contextPath}/controller?command=${command}&sortingColumn=${sortingColumn}&reversedOrder=${reversedOrder}&pageNumber=${pageNumber-1}"> ${pageNumber-1} </a>
+                   href="${pageContext.request.contextPath}/controller?command=main&sortingColumn=${sortingColumn}&reversedOrder=${reversedOrder}&pageNumber=${pageNumber-1}"> ${pageNumber-1} </a>
             </c:if>
             <div class="btn btn-outline-secondary disabled">${pageNumber}</div>
             <c:if test="${countOfPages > pageNumber}">
                 <a class="btn btn-outline-primary"
-                   href="${pageContext.request.contextPath}/controller?command=${command}&sortingColumn=${sortingColumn}&reversedOrder=${reversedOrder}&pageNumber=${pageNumber+1}"> ${pageNumber+1} </a>
+                   href="${pageContext.request.contextPath}/controller?command=main&sortingColumn=${sortingColumn}&reversedOrder=${reversedOrder}&pageNumber=${pageNumber+1}"> ${pageNumber+1} </a>
                 <c:if test="${countOfPages > pageNumber + 1}">
                     <c:if test="${countOfPages > pageNumber + 2}">
                         ...
                     </c:if>
                     <a class="btn btn-outline-primary"
-                       href="${pageContext.request.contextPath}/controller?command=${command}&sortingColumn=${sortingColumn}&reversedOrder=${reversedOrder}&pageNumber=${countOfPages}"> ${countOfPages} </a>
+                       href="${pageContext.request.contextPath}/controller?command=main&sortingColumn=${sortingColumn}&reversedOrder=${reversedOrder}&pageNumber=${countOfPages}"> ${countOfPages} </a>
                 </c:if>
             </c:if>
         </div>

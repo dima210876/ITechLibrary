@@ -116,7 +116,7 @@
             </tbody>
         </table>
     </div>
-    <jsp:include page="pagination.jsp"/>
+    <jsp:include page="readerPagination.jsp"/>
     <br>
     <a class="btn btn-primary btn-md" href="${pageContext.request.contextPath}/controller?command=reader_creation_form">Добавить нового читателя</a>
 </div>

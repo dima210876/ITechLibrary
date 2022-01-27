@@ -11,7 +11,7 @@
 <jsp:include page="commands.jsp"/>
 <div class="container py-4">
     <jsp:include page="bookList.jsp"/>
-    <jsp:include page="pagination.jsp"/>
+    <jsp:include page="bookPagination.jsp"/>
     <br>
     <a class="btn btn-primary btn-md" href="${pageContext.request.contextPath}/controller?command=book_creation_form">Добавить новую книгу</a>
 </div>

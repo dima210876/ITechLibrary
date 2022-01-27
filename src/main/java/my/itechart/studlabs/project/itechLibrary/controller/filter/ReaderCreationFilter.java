@@ -50,7 +50,8 @@ public class ReaderCreationFilter implements Filter
             if (lastName.isEmpty() || lastName.equals("null") ||
                     firstName.isEmpty() || firstName.equals("null") ||
                     (!passportNumber.isEmpty() && !checkPassportNumberUnique(passportNumber)) ||
-                    birthDay.isEmpty() || birthDay.equals("null") || LocalDate.parse(birthDay, formatter).isAfter(LocalDate.now()) ||
+                    birthDay.isEmpty() || birthDay.equals("null") ||
+                    LocalDate.parse(birthDay, formatter).isBefore(LocalDate.of(1900,1,1)) || LocalDate.parse(birthDay, formatter).isAfter(LocalDate.now()) ||
                     email.isEmpty() || email.equals("null") ||
                     !checkEmailUnique(email))
             {

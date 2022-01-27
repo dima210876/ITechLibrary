@@ -52,8 +52,8 @@ public class BookCreationFilter implements Filter
 
             final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
             if (titleRu.isEmpty() || titleRu.equals("null") ||
-                    bookCost.isEmpty() || bookCost.equals("null") ||
-                    dayCost.isEmpty() || dayCost.equals("null") ||
+                    bookCost.isEmpty() || bookCost.equals("null") || (Double.parseDouble(bookCost) < 0) ||
+                    dayCost.isEmpty() || dayCost.equals("null") || (Double.parseDouble(dayCost) < 0) ||
                     (!editionYear.isEmpty() && (Integer.parseInt(editionYear) < 1900 || Integer.parseInt(editionYear) > LocalDate.now().getYear())) ||
                     registrationDate.isEmpty() || registrationDate.equals("null") || LocalDate.parse(registrationDate, formatter).isAfter(LocalDate.now()) ||
                     copyCount.equals("null") || Integer.parseInt(copyCount) < 1 || Integer.parseInt(copyCount) > 100 ||

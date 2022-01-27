@@ -25,8 +25,6 @@ public enum CreateReader implements Command
     private static final String ADDRESS_PARAMETER_NAME = "address";
 
     private static final String ERROR_ATTRIBUTE_NAME = "errorMsg";
-    private static final String COMMAND_PARAMETER_NAME = "command";
-    private static final String SHOW_READERS_COMMAND_VALUE = "readers";
 
     private final ReaderService readerService = ReaderServiceImpl.getInstance();
 
@@ -49,7 +47,6 @@ public enum CreateReader implements Command
             request.setAttribute(ERROR_ATTRIBUTE_NAME, "Сохранить читателя не удалось.");
             return ShowReaderCreationForm.INSTANCE.execute(request);
         }
-        request.setAttribute(COMMAND_PARAMETER_NAME, SHOW_READERS_COMMAND_VALUE);
         return ShowReadersPage.INSTANCE.execute(request);
     }
 }

@@ -35,15 +35,15 @@
                         <c:when test="${requestScope.sortingColumn == 'edition_year'}">
                             <c:choose>
                                 <c:when test="${requestScope.reversedOrder == 'false'}">
-                                    <a href="${pageContext.request.contextPath}/controller?command=main&sortingColumn=edition_year&reversedOrder=true">Год выпуска</a>
+                                    <a href="${pageContext.request.contextPath}/controller?command=main&sortingColumn=edition_year&reversedOrder=true">Год издания</a>
                                 </c:when>
                                 <c:otherwise>
-                                    <a href="${pageContext.request.contextPath}/controller?command=main&sortingColumn=edition_year&reversedOrder=false">Год выпуска</a>
+                                    <a href="${pageContext.request.contextPath}/controller?command=main&sortingColumn=edition_year&reversedOrder=false">Год издания</a>
                                 </c:otherwise>
                             </c:choose>
                         </c:when>
                         <c:otherwise>
-                            <a href="${pageContext.request.contextPath}/controller?command=main&sortingColumn=edition_year&reversedOrder=false">Год выпуска</a>
+                            <a href="${pageContext.request.contextPath}/controller?command=main&sortingColumn=edition_year&reversedOrder=false">Год издания</a>
                         </c:otherwise>
                     </c:choose>
                 </th>
@@ -99,7 +99,7 @@
                             <c:set var="countOfGenres" value="${countOfGenres + 1}"/>
                         </c:forEach>
                         <c:choose>
-                            <c:when test="${countOfGenres > 1}">${str.substring(0, str.length() - 2)}</c:when>
+                            <c:when test="${countOfGenres > 0}">${str.substring(0, str.length() - 2)}</c:when>
                             <c:otherwise>${str}</c:otherwise>
                         </c:choose>
                     </td>
