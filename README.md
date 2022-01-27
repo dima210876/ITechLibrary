@@ -9,4 +9,4 @@
 * Change your MySQL database connection properties at database.properties file
 * Prepare database tables using database.sql file
 * To test application you can use test.sql file (to generate data in tables)
-* If you need to restart with th same generated data, just run sql-scripts again
+* If you need to restart with the same generated data, just rerun sql-scripts
